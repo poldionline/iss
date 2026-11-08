@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ISS-Überflug-Radar</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.3/satellite.min.js"></script>
+<style>
+:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg1:#050a1c;--bg2:#12103a;--card:rgba(255,255,255,.06);--line:rgba(255,255,255,.12);--tx:#eef2ff;--mut:#9aa6cf;--acc:#5eead4;--acc2:#a78bfa;--warn:#fbbf24;--grid:rgba(255,255,255,.14)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){color-scheme:light;--bg1:#e9eefc;--bg2:#d8d4fb;--card:rgba(255,255,255,.7);--line:rgba(20,20,60,.15);--tx:#14173a;--mut:#4b557d;--acc:#0d9488;--acc2:#6d28d9;--warn:#b45309;--grid:rgba(20,20,60,.2)}}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100vh;color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(900px 600px at 85% -10%,rgba(124,92,255,.45),transparent 60%),radial-gradient(800px 600px at -10% 40%,rgba(20,184,166,.22),transparent 60%),radial-gradient(900px 700px at 60% 120%,rgba(236,72,153,.18),transparent 60%),var(--bg1);overflow-x:hidden}
+#stars{position:fixed;inset:0;z-index:0;pointer-events:none}
+main{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:22px 16px 48px}
+h1{margin:0;font-size:clamp(26px,5vw,40px);letter-spacing:-.02em;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mut);margin:6px 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:4px;flex:1;min-width:110px}
+input,select,textarea{background:rgba(127,127,170,.15);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--tx);font:inherit}
+button{cursor:pointer;border:1px solid var(--line);border-radius:12px;padding:10px 14px;font:inherit;color:var(--tx);background:rgba(127,127,170,.18)}
+button.p{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#04122a;border:0;font-weight:700}
+button:hover{filter:brightness(1.15)}
+.grid{display:grid;gap:16px;grid-template-columns:1fr 1fr;margin-top:16px}
+@media(max-width:720px){.grid{grid-template-columns:1fr}}
+.hero{text-align:center}
+.lbl{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+#cd{font-size:clamp(38px,9vw,64px);font-weight:800;font-variant-numeric:tabular-nums;margin:6px 0;letter-spacing:-.02em}
+#when{font-size:18px}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;background:rgba(127,127,170,.14)}
+.vis{color:var(--acc);border-color:var(--acc)}
+.dim{color:var(--mut)}
+#sky{width:100%;height:auto;display:block;max-width:420px;margin:0 auto}
+.pass{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px;border-radius:14px;border:1px solid transparent;cursor:pointer}
+.pass:hover,.pass.on{background:rgba(127,127,170,.16);border-color:var(--line)}
+.pass b{display:block}
+.pass small{color:var(--mut)}
+.badge{font-size:11px;padding:4px 9px;border-radius:999px;white-space:nowrap;border:1px solid var(--line);color:var(--mut)}
+.badge.v{color:var(--acc);border-color:var(--acc)}
+#list{max-height:430px;overflow:auto;margin-top:8px}
+details{margin-top:12px;color:var(--mut);font-size:14px}
+textarea{width:100%;font-family:ui-monospace,Menlo,monospace;font-size:12px;margin-top:8px}
+.warn{color:var(--warn);font-size:13px;margin-top:8px}
+.srch{position:relative;flex:2;min-width:200px}
+#sug{display:none;position:absolute;top:100%;left:0;right:0;margin-top:6px;z-index:20;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:rgba(14,18,48,.97);box-shadow:0 14px 40px rgba(0,0,0,.5)}
+#sug div{padding:10px 14px;cursor:pointer;color:#eef2ff;font-size:15px}
+#sug div:hover,#sug div.h{background:linear-gradient(90deg,rgba(94,234,212,.22),rgba(167,139,250,.22))}
+#sug small{color:#9aa6cf;margin-left:8px}
+.card{box-shadow:0 10px 40px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.08)}
+.hero{position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent,rgba(94,234,212,.22),transparent 30%,rgba(167,139,250,.22),transparent 60%);animation:sp 9s linear infinite;z-index:0}
+.hero::after{content:"";position:absolute;inset:1px;border-radius:19px;background:linear-gradient(160deg,rgba(14,18,48,.92),rgba(8,10,30,.92));z-index:0}
+.hero>*{position:relative;z-index:1}
+@keyframes sp{to{transform:rotate(360deg)}}
+#cd{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 18px rgba(94,234,212,.35))}
+@media(prefers-color-scheme:light){:root:not([data-theme="dark"]) .hero::after{background:linear-gradient(160deg,rgba(255,255,255,.92),rgba(235,235,255,.92))}}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<main>
+<h1>ISS-Überflug-Radar</h1>
+<p class="sub">Wann fliegt die Internationale Raumstation das nächste Mal über deinen Standort?</p>
+
+<div class="card">
+  <div class="row">
+    <label>Breitengrad<input id="lat" type="number" step="0.0001" value="52.5200"></label>
+    <label>Längengrad<input id="lon" type="number" step="0.0001" value="13.4050"></label>
+    <label class="srch">🔎 Ort suchen<input id="q" type="search" placeholder="z. B. Hamburg, Wien, Tokio …" autocomplete="off"><div id="sug"></div></label><label style="display:none">
+      <select id="pre"><option value="">Beispielorte …</option>
+      <option value="52.52,13.405">Berlin</option><option value="48.1351,11.582">München</option>
+      <option value="53.5511,9.9937">Hamburg</option><option value="48.2082,16.3738">Wien</option>
+      <option value="47.3769,8.5417">Zürich</option><option value="50.1109,8.6821">Frankfurt</option></select></label>
+    <button id="gps">📍 Mein Standort</button>
+    <button id="go" class="p">Berechnen</button>
+  </div>
+  <details><summary>Bahndaten (TLE) aktualisieren</summary>
+    <textarea id="tle" rows="3" spellcheck="false">1 25544U 98067A   26311.46585586  .00013675  00000-0  25364-3 0  9995
+2 25544  51.6322 311.0743 0007259 358.6383   1.4584 15.49241207593968</textarea>
+    <div id="age" class="warn"></div>
+    <div>Aktuelle Daten für „ISS (ZARYA)“ gibt es bei celestrak.org oder space-track.org. Einfach beide Zeilen hier einfügen und neu berechnen.</div>
+  </details>
+</div>
+
+<div class="card" style="margin-top:16px;padding:0;overflow:hidden;background:radial-gradient(circle at 50% 50%,rgba(20,30,80,.55),rgba(3,6,20,.85));position:relative"><canvas id="globe" style="width:100%;height:min(80vw,540px);display:block"></canvas></div>
+<div class="grid">
+  <div class="card hero">
+    <div class="lbl">Nächster Überflug in</div>
+    <div id="cd">–</div>
+    <div id="when" class="dim">Bitte Standort wählen</div>
+    <div class="chips" id="chips"></div>
+  </div>
+  <div class="card">
+    <div class="lbl" style="text-align:center">Himmelskarte des Überflugs</div>
+    <svg id="sky" viewBox="0 0 400 400" role="img" aria-label="Himmelskarte"></svg>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <div class="lbl">Alle Überflüge der nächsten 7 Tage (über 10° Höhe)</div>
+  <div id="list"></div>
+</div>
+</main>
+
+<script>
+(function(){
+// Sternenhimmel
+var cv=document.getElementById('stars'),cx=cv.getContext('2d'),S=[];
+function rs(){cv.width=innerWidth;cv.height=innerHeight;S=[];for(var i=0;i<140;i++)S.push([Math.random()*cv.width,Math.random()*cv.height,Math.random()*1.4+.2,Math.random()*6])}
+rs();addEventListener('resize',rs);
+(function tw(t){cx.clearRect(0,0,cv.width,cv.height);S.forEach(function(s){cx.globalAlpha=.25+.45*Math.abs(Math.sin(t/1400+s[3]));cx.fillStyle='#fff';cx.beginPath();cx.arc(s[0],s[1],s[2],0,7);cx.fill()});requestAnimationFrame(tw)})(0);
+
+var $=function(i){return document.getElementById(i)},D=Math.PI/180,passes=[],sel=0,satrec=null;
+var DIR=['N','NO','O','SO','S','SW','W','NW'];
+function dir(a){return DIR[Math.round(a/45)%8]}
+function fmt(d,o){return d.toLocaleString('de-DE',o)}
+
+function loadTle(){
+  var l=$('tle').value.trim().split('\n').map(function(s){return s.trim()}).filter(function(s){return /^[12] /.test(s)});
+  if(l.length<2){$('age').textContent='TLE ungültig.';return false}
+  satrec=satellite.twoline2satrec(l[0],l[1]);
+  var yr=2000+ +l[0].substr(18,2),ep=new Date(Date.UTC(yr,0,1)+(+l[0].substr(20,12)-1)*864e5);
+  var days=(Date.now()-ep)/864e5;
+  $('age').textContent='Bahndaten vom '+fmt(ep,{dateStyle:'medium'})+' (vor '+Math.round(days)+' Tagen).'+(days>14?' ⚠️ Ältere Daten machen die Zeiten ungenauer – für minutengenaue Ergebnisse bitte aktuelle TLE einfügen.':'');
+  return true;
+}
+
+function sunEci(d){
+  var n=d/864e5+2440587.5-2451545,L=280.46+.9856474*n,g=(357.528+.9856003*n)*D,
+  lam=(L+1.915*Math.sin(g)+.02*Math.sin(2*g))*D,eps=(23.439-4e-7*n)*D,r=1.00014-.01671*Math.cos(g),A=149597870.7*r;
+  return {x:A*Math.cos(lam),y:A*Math.cos(eps)*Math.sin(lam),z:A*Math.sin(eps)*Math.sin(lam)};
+}
+function state(t,obs){
+  var pv=satellite.propagate(satrec,t);if(!pv.position)return null;
+  var gm=satellite.gstime(t),ecf=satellite.eciToEcf(pv.position,gm),la=satellite.ecfToLookAngles(obs,ecf);
+  return {el:la.elevation/D,az:la.azimuth/D,range:la.rangeSat,eci:pv.position,gm:gm};
+}
+function visible(t,obs,s){
+  var su=sunEci(t),sl=satellite.ecfToLookAngles(obs,satellite.eciToEcf(su,s.gm)).elevation/D;
+  if(sl>-6)return false;
+  var m=Math.hypot(su.x,su.y,su.z),u=[su.x/m,su.y/m,su.z/m],p=s.eci,dt=p.x*u[0]+p.y*u[1]+p.z*u[2];
+  if(dt>=0)return true;
+  var pr=Math.sqrt(Math.max(0,p.x*p.x+p.y*p.y+p.z*p.z-dt*dt));
+  return pr>6371;
+}
+function compute(){
+  if(!loadTle())return;
+  var lat=+$('lat').value,lon=+$('lon').value;
+  if(isNaN(lat)||isNaN(lon)||Math.abs(lat)>90||Math.abs(lon)>180){$('when').textContent='Ungültige Koordinaten';return}
+  var obs={latitude:lat*D,longitude:lon*D,height:.05},t0=Date.now(),end=t0+7*864e5,cur=null;passes=[];
+  for(var t=t0;t<end;t+=20000){
+    var d=new Date(t),s=state(d,obs);if(!s)continue;
+    if(s.el>0){
+      if(!cur)cur={rise:t,riseAz:s.az,max:0,vis:false};
+      if(s.el>cur.max){cur.max=s.el;cur.tMax=t;cur.maxAz=s.az}
+      if(visible(d,obs,s))cur.vis=true;
+      cur.set=t;cur.setAz=s.az;
+    }else if(cur){if(cur.max>=10)passes.push(cur);cur=null}
+  }
+  if(cur&&cur.max>=10)passes.push(cur);
+  sel=0;render();
+}
+function pathFor(p){
+  var obs={latitude:+$('lat').value*D,longitude:+$('lon').value*D,height:.05},pts=[];
+  for(var t=p.rise-20000;t<=p.set+20000;t+=5000){var s=state(new Date(t),obs);if(s&&s.el>=0)pts.push(s)}
+  return pts;
+}
+function xy(az,el){var r=170*(1-el/90);return [200+r*Math.sin(az*D),200-r*Math.cos(az*D)]}
+function drawSky(){
+  var svg=$('sky'),h='<defs><radialGradient id="g"><stop offset="0" stop-color="#5eead4" stop-opacity=".18"/><stop offset="1" stop-color="#a78bfa" stop-opacity=".02"/></radialGradient>'+
+  '<filter id="gl" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><linearGradient id="pg" x1="0" x2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#5eead4"/></linearGradient></defs>'+
+  '<circle cx="200" cy="200" r="170" fill="url(#g)" stroke="var(--grid)"/>';
+  [30,60].forEach(function(e){h+='<circle cx="200" cy="200" r="'+170*(1-e/90)+'" fill="none" stroke="var(--grid)" stroke-dasharray="3 5"/>'});
+  h+='<path d="M200 30V370M30 200H370" stroke="var(--grid)" stroke-dasharray="3 5"/>';
+  [['N',200,20],['O',384,205],['S',200,392],['W',16,205]].forEach(function(a){h+='<text x="'+a[1]+'" y="'+a[2]+'" fill="var(--mut)" font-size="14" text-anchor="middle">'+a[0]+'</text>'});
+  var p=passes[sel];
+  if(p){
+    var pts=pathFor(p);
+    if(pts.length>1){
+      var d=pts.map(function(s,i){var q=xy(s.az,s.el);return(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)}).join('');
+      h+='<path d="'+d+'" fill="none" stroke="url(#pg)" stroke-width="5" stroke-linecap="round" filter="url(#gl)"><animate attributeName="stroke-dasharray" from="0 900" to="900 0" dur="2s" fill="freeze"/></path>';
+      var a=xy(pts[0].az,pts[0].el),b=xy(pts[pts.length-1].az,pts[pts.length-1].el),m=xy(p.maxAz,p.max);
+      h+='<circle cx="'+a[0]+'" cy="'+a[1]+'" r="5" fill="#a78bfa"/><circle cx="'+b[0]+'" cy="'+b[1]+'" r="5" fill="#5eead4"/>'+
+      '<circle cx="'+m[0]+'" cy="'+m[1]+'" r="9" fill="none" stroke="#fbbf24" stroke-width="2"><animate attributeName="r" values="7;13;7" dur="2s" repeatCount="indefinite"/></circle>'+
+      '<text x="'+m[0]+'" y="'+(m[1]-16)+'" fill="#fbbf24" font-size="13" text-anchor="middle">'+Math.round(p.max)+'°</text>'+
+      '<text x="'+(a[0]+(a[0]<200?-8:8))+'" y="'+(a[1]+(a[1]<200?-10:18))+'" fill="var(--mut)" font-size="11" text-anchor="'+(a[0]<200?'end':'start')+'">Aufgang</text>';
+    }
+  }
+  svg.innerHTML=h;
+}
+function render(){
+  var L=$('list');L.innerHTML='';
+  if(!passes.length){$('when').textContent='Kein Überflug über 10° in 7 Tagen gefunden';$('cd').textContent='–';$('chips').innerHTML='';drawSky();return}
+  passes.forEach(function(p,i){
+    var r=document.createElement('div');r.className='pass'+(i===sel?' on':'');
+    var dur=Math.round((p.set-p.rise)/60000*10)/10;
+    r.innerHTML='<div><b>'+fmt(new Date(p.rise),{weekday:'short',day:'2-digit',month:'short'})+', '+fmt(new Date(p.rise),{timeStyle:'short'})+' Uhr</b><small>Höhe '+Math.round(p.max)+'° · '+dir(p.riseAz)+' → '+dir(p.setAz)+' · '+dur+' Min.</small></div><span class="badge '+(p.vis?'v':'')+'">'+(p.vis?'👁 sichtbar':'tagsüber/Schatten')+'</span>';
+    r.onclick=function(){sel=i;render()};L.appendChild(r);
+  });
+  var p=passes[sel],dur=Math.round((p.set-p.rise)/6000)/10;
+  $('when').innerHTML='<b>'+fmt(new Date(p.rise),{weekday:'long',day:'numeric',month:'long'})+'</b>, '+fmt(new Date(p.rise),{timeStyle:'medium'})+' Uhr';
+  $('chips').innerHTML='<span class="chip">⬆ Aufgang: '+dir(p.riseAz)+' ('+Math.round(p.riseAz)+'°)</span><span class="chip">⭐ Max. '+Math.round(p.max)+'° im '+dir(p.maxAz)+'</span><span class="chip">⬇ Untergang: '+dir(p.setAz)+'</span><span class="chip">⏱ '+dur+' Min.</span><span class="chip '+(p.vis?'vis':'')+'">'+(p.vis?'👁 mit bloßem Auge sichtbar':'nicht sichtbar (hell/Erdschatten)')+'</span>';
+  drawSky();tick();
+}
+function tick(){
+  var p=passes[sel];if(!p)return;
+  var ms=p.rise-Date.now();
+  if(ms<=0&&Date.now()<p.set){$('cd').textContent='JETZT! 🚀';return}
+  if(ms<=0){$('cd').textContent='vorbei';return}
+  var s=Math.floor(ms/1000),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60),z=function(n){return String(n).padStart(2,'0')};
+  $('cd').textContent=(d?d+'T ':'')+z(h)+':'+z(m)+':'+z(s%60);
+}
+setInterval(tick,1000);
+var gc=$('globe'),g=gc.getContext('2d');
+function ll(t){t=new Date(t);var pv=satellite.propagate(satrec,t);if(!pv.position)return null;var q=satellite.eciToGeodetic(pv.position,satellite.gstime(t));return [q.latitude,q.longitude]}
+function pj(la,lo,l0,p0){var c=Math.cos(la),dl=lo-l0;return [c*Math.sin(dl),Math.cos(p0)*Math.sin(la)-Math.sin(p0)*c*Math.cos(dl),Math.sin(p0)*Math.sin(la)+Math.cos(p0)*c*Math.cos(dl)]}
+function ring(la,lo,r,n){var a=[];for(var i=0;i<=n;i++){var b=i/n*6.2832,l2=Math.asin(Math.sin(la)*Math.cos(r)+Math.cos(la)*Math.sin(r)*Math.cos(b));a.push([l2,lo+Math.atan2(Math.sin(b)*Math.sin(r)*Math.cos(la),Math.cos(r)-Math.sin(la)*Math.sin(l2))])}return a}
+var GV={x:0,y:0,z:1,vx:0,vy:0,v:0,d:0,t:0},lp=null;
+gc.style.touchAction='none';gc.style.cursor='grab';
+gc.onpointerdown=function(e){gc.setPointerCapture(e.pointerId);GV.d=1;GV.t=1;GV.v=0;lp=[e.clientX,e.clientY];gc.style.cursor='grabbing'};
+gc.onpointermove=function(e){if(!GV.d)return;var R=Math.min(gc.clientWidth,gc.clientHeight)*.4*GV.z,dx=(e.clientX-lp[0])/R,dy=(e.clientY-lp[1])/R;lp=[e.clientX,e.clientY];GV.x-=dx;GV.y=Math.max(-1.2,Math.min(1.2,GV.y+dy));GV.vx=-dx;GV.vy=dy;GV.v=1};
+gc.onpointerup=gc.onpointercancel=function(){GV.d=0;gc.style.cursor='grab'};
+gc.onwheel=function(e){e.preventDefault();GV.z=Math.max(.6,Math.min(2.2,GV.z*(e.deltaY<0?1.1:.91)))};
+var FOL=0;
+gc.ondblclick=function(){GV.x=GV.y=GV.v=GV.t=0;GV.z=1;FOL=0};
+function frame(now){
+ var W=gc.clientWidth,H=gc.clientHeight,dp=devicePixelRatio||1;
+ if(gc.width!==Math.round(W*dp)){gc.width=Math.round(W*dp);gc.height=Math.round(H*dp)}
+ g.setTransform(dp,0,0,dp,0,0);g.clearRect(0,0,W,H);
+ if(satrec){
+  var inr=(GV.v&&!GV.d)?(GV.x+=GV.vx,GV.y=Math.max(-1.2,Math.min(1.2,GV.y+GV.vy)),GV.vx*=.95,GV.vy*=.95,GV.v=Math.abs(GV.vx)+Math.abs(GV.vy)>1e-4):0,cx=W/2,cy=H/2,R=Math.min(W,H)*.4*GV.z,t=Date.now(),d=new Date(t),olat=(+$('lat').value||0)*D,olon=(+$('lon').value||0)*D,
+  fp=ll(t)||[0,0],bl=FOL?fp[1]:olon,bp=FOL?fp[0]:olat,l0=bl+GV.x+(GV.t||FOL?0:.35*Math.sin(now/7000)),p0=Math.max(-1.4,Math.min(1.4,bp*.55+.2+GV.y));
+  function line(pts,col,w,glow){g.beginPath();var on=false;pts.forEach(function(p){var q=pj(p[0],p[1],l0,p0);if(q[2]>0){var X=cx+R*q[0],Y=cy-R*q[1];on?g.lineTo(X,Y):g.moveTo(X,Y);on=true}else on=false});g.strokeStyle=col;g.lineWidth=w;g.shadowColor=glow||'transparent';g.shadowBlur=glow?14:0;g.stroke();g.shadowBlur=0}
+  var rg=g.createRadialGradient(cx,cy,R*.92,cx,cy,R*1.4);rg.addColorStop(0,'rgba(94,234,212,.4)');rg.addColorStop(.35,'rgba(124,92,255,.18)');rg.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=rg;g.fillRect(0,0,W,H);
+  var sg=g.createRadialGradient(cx-R*.35,cy-R*.4,R*.1,cx,cy,R);sg.addColorStop(0,'#1b3a80');sg.addColorStop(1,'#040a20');g.beginPath();g.arc(cx,cy,R,0,7);g.fillStyle=sg;g.fill();
+  var su=sunEci(d),gm=satellite.gstime(d),m=Math.hypot(su.x,su.y,su.z),sla=Math.asin(su.z/m),slo=Math.atan2(su.y,su.x)-gm;
+  for(var la=-86;la<=-90;la+=3.5){var st=3.5/Math.max(.15,Math.cos(la*D));for(var lo=-180;lo<180;lo+=st){var a=la*D,b=lo*D,q=pj(a,b,l0,p0);if(q[2]<=0)continue;
+   var s=Math.sin(a)*Math.sin(sla)+Math.cos(a)*Math.cos(sla)*Math.cos(b-slo),k=Math.max(0,Math.min(1,s*4+.4));
+   g.fillStyle=k>.02?'rgba('+Math.round(110+120*k)+','+Math.round(170+70*k)+',255,'+(.25+.6*k)*(.4+.6*q[2])+')':'rgba(80,100,200,'+.3*(.3+q[2])+')';
+   var z=1+1.1*q[2];g.fillRect(cx+R*q[0]-z/2,cy-R*q[1]-z/2,z,z)}}
+  if(!DOTS)initDots();
+  for(var i=0;i<DOTS.length;i++){var o=DOTS[i],q=pj(o[0],o[1],l0,p0);if(q[2]<=0)continue;
+   var s=o[3]*Math.sin(sla)+o[4]*Math.cos(sla)*Math.cos(o[1]-slo),k=Math.max(0,Math.min(1,s*4+.4)),e=.35+.65*q[2],z;
+   if(o[2]){z=1.5+1.5*q[2];g.fillStyle=k>.05?'rgba('+Math.round(90+60*k)+','+Math.round(200+40*k)+','+Math.round(150+30*k)+','+(.55+.4*k)*e+')':'rgba(255,196,110,'+.7*e+')'}
+   else{z=.9+.9*q[2];g.fillStyle='rgba('+Math.round(50+40*k)+','+Math.round(80+80*k)+','+Math.round(190+50*k)+','+(.16+.22*k)*e+')'}
+   g.fillRect(cx+R*q[0]-z/2,cy-R*q[1]-z/2,z,z)}
+  var past=[],fut=[];for(var k=-40;k<=70;k+=1){var p=ll(t+k*60000);if(p)(k<=0?past:fut).push(p)}
+  if(past.length&&fut.length)fut.unshift(past[past.length-1]);
+  line(past,'rgba(167,139,250,.55)',2);line(fut,'#5eead4',3,'#5eead4');
+  var ip=ll(t);
+  if(ip){line(ring(ip[0],ip[1],.36,72),'rgba(94,234,212,.55)',1.5);
+   var q=pj(ip[0],ip[1],l0,p0);if(q[2]>0){var X=cx+R*q[0],Y=cy-R*q[1],pu=(now/900)%1;
+    g.beginPath();g.arc(X,Y,6+16*pu,0,7);g.strokeStyle='rgba(94,234,212,'+(1-pu)*.8+')';g.lineWidth=2;g.stroke();
+    g.shadowColor='#fff';g.shadowBlur=18;g.fillStyle='#fff';g.fillRect(X-9,Y-1.5,18,3);g.fillRect(X-1.5,Y-4,3,8);g.fillStyle='#5eead4';g.fillRect(X-9,Y-4,5,8);g.fillRect(X+4,Y-4,5,8);g.shadowBlur=0;
+    g.fillStyle='#eef2ff';g.font='600 12px system-ui';g.fillText('ISS',X+12,Y-10)}}
+  var oq=pj(olat,olon,l0,p0);if(oq[2]>0){var OX=cx+R*oq[0],OY=cy-R*oq[1],o=(now/1400)%1;
+   g.beginPath();g.arc(OX,OY,4+22*o,0,7);g.strokeStyle='rgba(251,191,36,'+(1-o)*.9+')';g.lineWidth=2;g.stroke();
+   g.shadowColor='#fbbf24';g.shadowBlur=16;g.beginPath();g.arc(OX,OY,5,0,7);g.fillStyle='#fbbf24';g.fill();g.shadowBlur=0;
+   g.fillStyle='#fde68a';g.font='600 12px system-ui';g.fillText('Du bist hier',OX+10,OY+16)}
+  g.beginPath();g.arc(cx,cy,R,0,7);g.strokeStyle='rgba(255,255,255,.18)';g.lineWidth=1;g.stroke();
+  var pv=satellite.propagate(satrec,d),gd=satellite.eciToGeodetic(pv.position,gm),sp=Math.hypot(pv.velocity.x,pv.velocity.y,pv.velocity.z),la2=gd.latitude/D,lo2=gd.longitude/D;
+  g.fillStyle='rgba(8,12,36,.65)';g.strokeStyle='rgba(94,234,212,.45)';g.lineWidth=1;g.beginPath();g.roundRect(14,14,170,114,14);g.fill();g.stroke();
+  g.fillStyle='#5eead4';g.font='700 11px system-ui';g.fillText('● ISS LIVE',28,34);
+  g.fillStyle='#eef2ff';g.font='600 13px ui-monospace,Menlo,monospace';
+  g.fillText(Math.abs(la2).toFixed(3)+'° '+(la2>=0?'N':'S'),28,56);g.fillText(Math.abs(lo2).toFixed(3)+'° '+(lo2>=0?'O':'W'),28,74);
+  g.fillText(Math.round(gd.height)+' km Höhe',28,92);
+  g.fillText(Math.round(sp*3600).toLocaleString('de-DE')+' km/h',28,110);
+  g.fillStyle='rgba(238,242,255,.7)';g.font='12px system-ui';g.fillText('✋ Ziehen = drehen · Doppeltippen = zurück',14,H-34);g.fillText('Bahn der nächsten 70 Min. · Tag/Nacht',14,H-14);
+ }
+ requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+var DOTS=null,LAND=[
+[[-10,36],[-9,43],[-1,46],[-5,48],[2,51],[5,54],[8,57],[12,55],[10,59],[5,62],[15,69],[25,71],[40,68],[60,70],[80,73],[105,77],[140,72],[170,70],[180,66],[160,60],[155,51],[142,53],[135,43],[127,40],[122,37],[121,31],[110,21],[106,10],[100,13],[103,1],[98,8],[93,19],[88,22],[80,15],[77,8],[73,18],[67,25],[57,26],[52,27],[56,24],[59,22],[52,16],[43,13],[39,21],[35,28],[34,31],[36,36],[27,37],[26,40],[23,36],[19,40],[13,45],[8,44],[3,43],[-1,37],[-6,36]],
+[[-17,21],[-10,30],[-6,36],[10,37],[11,33],[20,31],[32,31],[34,28],[38,20],[43,12],[51,12],[40,-3],[40,-15],[35,-24],[32,-29],[20,-35],[18,-32],[12,-18],[13,-6],[9,4],[-8,4],[-17,14]],
+[[-168,66],[-156,71],[-125,70],[-95,72],[-80,63],[-62,58],[-55,50],[-67,45],[-76,38],[-81,31],[-80,25],[-83,29],[-90,29],[-97,26],[-97,18],[-88,16],[-83,9],[-79,8],[-92,14],[-105,20],[-110,23],[-115,30],[-123,38],[-124,48],[-135,58],[-150,60],[-165,55],[-165,62]],
+[[-55,60],[-45,60],[-20,70],[-20,82],[-60,82],[-70,76]],
+[[-78,8],[-72,12],[-62,10],[-50,0],[-35,-6],[-39,-15],[-48,-26],[-58,-38],[-65,-42],[-68,-52],[-72,-52],[-74,-40],[-71,-20],[-81,-6],[-80,0]],
+[[114,-22],[122,-18],[131,-12],[137,-12],[142,-11],[146,-19],[153,-26],[150,-37],[141,-38],[135,-34],[115,-34]],
+[[-5,50],[1,51],[-2,58],[-6,57]],[[130,33],[135,34],[141,35],[142,45],[140,41],[136,37]],[[44,-25],[50,-15],[49,-12],[44,-17]],[[95,5],[106,-6],[115,-8],[108,-1],[100,3]],[[-180,-72],[180,-72],[180,-90],[-180,-90]]];
+function inP(x,y,P){var c=false;for(var i=0,j=P.length-1;i<P.length;j=i++){if((P[i][1]>y)!=(P[j][1]>y)&&x<(P[j][0]-P[i][0])*(y-P[i][1])/(P[j][1]-P[i][1])+P[i][0])c=!c}return c}
+function initDots(){DOTS=[];for(var la=-88;la<=88;la+=2.6){var st=2.6/Math.max(.12,Math.cos(la*D));for(var lo=-180;lo<180;lo+=st){var land=LAND.some(function(P){return inP(lo,la,P)}),a=la*D;DOTS.push([a,lo*D,land,Math.sin(a),Math.cos(a)])}}}
+var CITIES=('Berlin,52.52,13.41;Hamburg,53.55,9.99;München,48.14,11.58;Köln,50.94,6.96;Frankfurt am Main,50.11,8.68;Stuttgart,48.78,9.18;Düsseldorf,51.23,6.78;Dresden,51.05,13.74;Leipzig,51.34,12.37;Hannover,52.37,9.74;Nürnberg,49.45,11.08;Bremen,53.08,8.80;Dortmund,51.51,7.47;Essen,51.46,7.01;Kiel,54.32,10.14;Rostock,54.09,12.10;Freiburg,47.99,7.85;Heidelberg,49.40,8.67;Münster,51.96,7.63;Bonn,50.73,7.10;Wien,48.21,16.37;Graz,47.07,15.44;Salzburg,47.81,13.04;Innsbruck,47.27,11.39;Linz,48.31,14.29;Zürich,47.38,8.54;Bern,46.95,7.45;Basel,47.56,7.59;Genf,46.20,6.14;Luzern,47.05,8.31;Luxemburg,49.61,6.13;Amsterdam,52.37,4.90;Brüssel,50.85,4.35;Paris,48.86,2.35;Lyon,45.76,4.84;Marseille,43.30,5.37;London,51.51,-0.13;Dublin,53.35,-6.26;Edinburgh,55.95,-3.19;Madrid,40.42,-3.70;Barcelona,41.39,2.17;Lissabon,38.72,-9.14;Rom,41.90,12.50;Mailand,45.46,9.19;Neapel,40.85,14.27;Venedig,45.44,12.32;Athen,37.98,23.73;Kopenhagen,55.68,12.57;Stockholm,59.33,18.07;Oslo,59.91,10.75;Helsinki,60.17,24.94;Reykjavik,64.15,-21.94;Warschau,52.23,21.01;Krakau,50.06,19.94;Prag,50.08,14.44;Budapest,47.50,19.04;Bukarest,44.43,26.10;Sofia,42.70,23.32;Belgrad,44.79,20.45;Zagreb,45.81,15.98;Kiew,50.45,30.52;Moskau,55.76,37.62;Istanbul,41.01,28.98;Ankara,39.93,32.86;Kairo,30.04,31.24;Tel Aviv,32.09,34.78;Dubai,25.20,55.27;Riad,24.71,46.68;Teheran,35.69,51.39;Karatschi,24.86,67.01;Neu-Delhi,28.61,77.21;Mumbai,19.08,72.88;Dhaka,23.81,90.41;Kathmandu,27.72,85.32;Bangkok,13.76,100.50;Hanoi,21.03,105.85;Singapur,1.35,103.82;Jakarta,-6.21,106.85;Manila,14.60,120.98;Peking,39.90,116.41;Shanghai,31.23,121.47;Hongkong,22.32,114.17;Taipeh,25.03,121.57;Seoul,37.57,126.98;Tokio,35.68,139.69;Osaka,34.69,135.50;Sydney,-33.87,151.21;Melbourne,-37.81,144.96;Perth,-31.95,115.86;Auckland,-36.85,174.76;Kapstadt,-33.92,18.42;Johannesburg,-26.20,28.05;Nairobi,-1.29,36.82;Lagos,6.52,3.38;Casablanca,33.57,-7.59;New York,40.71,-74.01;Washington,38.91,-77.04;Boston,42.36,-71.06;Chicago,41.88,-87.63;Houston,29.76,-95.37;Miami,25.76,-80.19;Denver,39.74,-104.99;Los Angeles,34.05,-118.24;San Francisco,37.77,-122.42;Seattle,47.61,-122.33;Anchorage,61.22,-149.90;Honolulu,21.31,-157.86;Toronto,43.65,-79.38;Vancouver,49.28,-123.12;Mexiko-Stadt,19.43,-99.13;Havanna,23.11,-82.37;Bogotá,4.71,-74.07;Lima,-12.05,-77.04;Santiago de Chile,-33.45,-70.67;Buenos Aires,-34.60,-58.38;São Paulo,-23.55,-46.63;Rio de Janeiro,-22.91,-43.17').split(';').map(function(s){var p=s.split(',');return{n:p[0],la:+p[1],lo:+p[2]}});
+async function geo(txt){
+ if(!txt)return;SG.innerHTML='<div>🌍 Suche läuft …</div>';SG.style.display='block';
+ try{var sm=window.claude&&await claude.use('sample');
+  if(!sm){SG.innerHTML='<div>Weltweite Suche hier nicht verfügbar – bitte Koordinaten eingeben.</div>';return}
+  var r=await sm.json('Geocoding: Nenne bis zu 5 wahrscheinliche Orte zu „'+txt+'“ als JSON-Objekt {"results":[{"name":"Ort, Region, Land","lat":0,"lon":0}]}. Dezimalgrade, so genau wie möglich, nur JSON.');
+  res=((r&&r.results)||[]).filter(function(c){return isFinite(c.lat)&&isFinite(c.lon)}).map(function(c){return{n:c.name,la:+c.lat,lo:+c.lon}});hl=0;
+  if(!res.length){SG.innerHTML='<div>Nichts gefunden.</div>';return}
+  paint();SG.style.display='block'
+ }catch(e){SG.innerHTML='<div>Suche nicht möglich ('+((e&&e.code)||'Fehler')+')</div>'}
+}
+function nz(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss')}
+var Q=$('q'),SG=$('sug'),hl=0,res=[];
+function pick(c){Q.value=c.n;SG.style.display='none';$('lat').value=c.la;$('lon').value=c.lo;compute()}
+function paint(){SG.innerHTML='';res.forEach(function(c,i){var d=document.createElement('div');d.className=i===hl?'h':'';d.innerHTML=c.n+'<small>'+c.la.toFixed(2)+'°, '+c.lo.toFixed(2)+'°</small>';d.onmousedown=function(e){e.preventDefault();pick(c)};SG.appendChild(d)});if(Q.value.trim().length>1){var w=document.createElement('div');w.innerHTML='🌍 „'+Q.value.trim().replace(/</g,'')+'“ weltweit suchen';w.style.color='#5eead4';w.onmousedown=function(e){e.preventDefault();geo(Q.value.trim())};SG.appendChild(w)}SG.style.display=SG.children.length?'block':'none'}
+Q.oninput=function(){var v=nz(Q.value.trim());if(!v){res=[];paint();return}res=CITIES.filter(function(c){return nz(c.n).indexOf(v)>=0}).sort(function(a,b){return nz(a.n).indexOf(v)-nz(b.n).indexOf(v)}).slice(0,7);hl=0;paint();if(false){SG.innerHTML='<div class="dim">Nicht gefunden – Koordinaten unter „Bahndaten“ sind nicht nötig, einfach oben Breite/Länge eintragen.</div>';SG.style.display='block'}};
+Q.onkeydown=function(e){if(e.key==='ArrowDown'){hl=Math.min(hl+1,res.length-1);paint();e.preventDefault()}else if(e.key==='ArrowUp'){hl=Math.max(hl-1,0);paint()}else if(e.key==='Enter'){if(res[hl])pick(res[hl]);else geo(Q.value.trim())}};
+Q.onblur=function(){setTimeout(function(){SG.style.display='none'},150)};
+setInterval(function(){if(passes[0]&&passes[0].set<Date.now())compute()},30000);
+$('go').onclick=compute;
+$('pre').onchange=function(){if(this.value){var v=this.value.split(',');$('lat').value=v[0];$('lon').value=v[1];compute()}};
+$('gps').onclick=function(){
+  if(!navigator.geolocation){$('when').textContent='Standort nicht verfügbar – bitte Koordinaten eingeben.';return}
+  navigator.geolocation.getCurrentPosition(function(r){$('lat').value=r.coords.latitude.toFixed(4);$('lon').value=r.coords.longitude.toFixed(4);compute()},
+  function(){$('when').textContent='Standortfreigabe nicht möglich – bitte Koordinaten eingeben.'},{timeout:8000});
+};
+compute();
+})();
+</script>
+</body>
+</html>
